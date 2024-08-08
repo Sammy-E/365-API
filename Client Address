@@ -1,0 +1,61 @@
+function populateLookupFields(executionContext) {
+    var formContext = executionContext.getFormContext();
+
+    var stateName = formContext.getAttribute("tri_state_text").getValue();
+    var countyName = formContext.getAttribute("tri_county_text").getValue();
+    var countryName = formContext.getAttribute("tri_country_text").getValue();
+
+
+    setLookup(formContext, "tri_state", "tri_abbreviation", "tri_stateid", stateName, "tri_stateid").then(guid=>{
+        if (guid) {
+            setCounty(formContext, countyName, guid);
+        }
+    });
+    setLookup(formContext, "tri_country", "tri_name", "tri_countryid", countryName, "tri_countryid");
+    
+}
+
+
+// Function to set lookup value by name
+function setLookup(formContext, entityName, fieldName, lookupFieldName, value, entityIdField) 
+{
+    return new Promise((resolve, reject) => {
+        if (value) {
+            var fetchXml = [
+                "<fetch top='1'>",
+                "  <entity name='" + entityName + "'>",
+                "    <filter>",
+                "      <condition attribute='" + fieldName + "' operator='eq' value='" + value + "'/>",
+                "    </filter>",
+                "  </entity>",
+                "</fetch>",
+            ].join("");
+
+            Xrm.WebApi.retrieveMultipleRecords(entityName, "?fetchXml=" + encodeURIComponent(fetchXml)).then(
+                function success(result) {
+
+                    if (result.entities.length > 0) {
+                        var guid = result.entities[0][entityIdField];
+                        var lookupValue = [
+                            {
+                                id: guid,
+                                name: value,
+                                entityType: entityName,
+                            },
+                        ];
+                        formContext.getAttribute(lookupFieldName).setValue(lookupValue);
+                        resolve(guid); // Resolve the promise with the GUID
+                    } else {
+                        resolve(null); // Resolve with null if no match
+                    }
+                },
+                function (error) {
+                    console.log(error.message);
+                    reject(error); // Reject the promise on error
+                }
+            );
+        } else {
+            resolve(null); // Resolve with null if value is not provided
+        }
+    });
+}
