@@ -1,0 +1,113 @@
+<html>
+  <head>
+    <title>Address Lookup</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,500" rel="stylesheet" />
+    <style>
+        .form-label {
+          display: inline-block;
+          width: 120px;
+          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+          font-size: 14px;
+          vertical-align: top; /* Aligns with the top of the input box */
+        }
+        .full-field {
+          margin: 15px 15px; /* Updated indent */
+        }
+        #address-lookup {
+          position: relative;
+          z-index: 1000; /* Higher z-index to make it hover over other fields */
+          width: 60%; /* Increased width by 60% */
+        }
+        .container {
+          height: 50%; /* Reduce the container height by 50% */
+        }
+        #address-lookup::placeholder {
+          color: #888;
+          font-style: italic;
+        }
+    </style>
+    
+    
+  </head>
+  <body>
+    <form id="address-form" action="" method="get" autocomplete="off">
+      <label class="full-field">
+        <span class="form-label">Address Lookup</span>
+        <input id="address-lookup" name="address-lookup" required autocomplete="off" placeholder="Find your address here" />
+      </label>
+    </form>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzweggsyBXbQLBsdfDn0sdfewetweNqIksQzE&callback=initAutocomplete&libraries=places&v=weekly"
+      defer
+    ></script>
+    <script>
+      let autocomplete;
+
+      function initAutocomplete() {
+        autocomplete = new google.maps.places.Autocomplete(document.querySelector("#address-lookup"), {
+          componentRestrictions: { country: ["us", "ca"] },
+          fields: ["address_components"],
+          types: ["address"],
+        });
+        autocomplete.addListener("place_changed", fillInAddress);
+      }
+    
+
+    function fillInAddress() 
+    {
+        const place = autocomplete.getPlace();
+        const addressDetails = {
+            tri_street1: "",
+            tri_city: "",
+            tri_state: "",
+            tri_zip: "",
+            tri_country: "",
+            tri_county: ""
+        };
+
+        for (const component of place.address_components) 
+        {
+            const componentType = component.types[0];
+
+            switch (componentType) {
+            case "street_number":
+                addressDetails.tri_street1 += component.long_name + " ";
+                break;
+            case "route":
+                addressDetails.tri_street1 += component.short_name;
+                break;
+            case "locality":
+                addressDetails.tri_city = component.long_name;
+                break;
+            case "administrative_area_level_1":
+                addressDetails.tri_state = component.short_name;
+                break;
+            case "postal_code":
+                addressDetails.tri_zip = component.long_name;
+                break;
+            case "administrative_area_level_2":
+                addressDetails.tri_county = component.long_name;
+                break;
+            case "country":
+                addressDetails.tri_country = component.long_name;
+                break;
+            }
+        }
+
+        parent.Xrm.Page.getAttribute("tri_street1").setValue(addressDetails.tri_street1);
+        parent.Xrm.Page.getAttribute("tri_city").setValue(addressDetails.tri_city);
+        parent.Xrm.Page.getAttribute("tri_zip").setValue(addressDetails.tri_zip);        
+        parent.Xrm.Page.getAttribute("tri_country_text").setValue(addressDetails.tri_country);
+        parent.Xrm.Page.getAttribute("tri_county_text").setValue(addressDetails.tri_county);
+        parent.Xrm.Page.getAttribute("tri_state_text").setValue(addressDetails.tri_state);
+
+        parent.Xrm.Page.getAttribute("tri_state_text").fireOnChange();
+ 
+    }
+
+
+    window.initAutocomplete = initAutocomplete;
+    </script>
+  </body>
+</html>
