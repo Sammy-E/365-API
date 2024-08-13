@@ -19,7 +19,7 @@ exports.main = async (event, callback) => {
   const city = event.inputFields['city'];
   const country = event.inputFields['country'];
   
-  //IF contact doesn't have an owner, it assigns myself (Coke) as the owner which is used later for contact and note owner
+  //IF contact doesn't have an owner, it assigns myself as the owner which is used later for contact and note owner
   if (OWNER === '' || OWNER === undefined) {
     OWNER = 1692194549; 
 	}
