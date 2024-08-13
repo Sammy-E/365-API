@@ -1,61 +1,95 @@
-function populateLookupFields(executionContext) {
-    var formContext = executionContext.getFormContext();
+let axios = require("axios");
 
-    var stateName = formContext.getAttribute("tri_state_text").getValue();
-    var countyName = formContext.getAttribute("tri_county_text").getValue();
-    var countryName = formContext.getAttribute("tri_country_text").getValue();
+exports.main = async (event, callback) => {
+  /*****
+    Event is everything within the workflows and callback is the external part API
+  *****/
+ 
+  
+  const EMAIL = event.inputFields['email'];
+  const RECORD_ID = event.inputFields['hs_object_id'];
+  let OWNER = event.inputFields['hubspot_owner_id'];
+  const currentDate = new Date();
+  const isoString = currentDate.toISOString();
+  const fName = event.inputFields['firstname'];
+  const lName = event.inputFields['lastname'];
+  const name = `${fName} ${lName}`;
+  const referrer = event.inputFields['referrer'];
+  const phone = event.inputFields['phone'];
+  const city = event.inputFields['city'];
+  const country = event.inputFields['country'];
+  
+  //IF contact doesn't have an owner, it assigns myself (Coke) as the owner which is used later for contact and note owner
+  if (OWNER === '' || OWNER === undefined) {
+    OWNER = 1692194549; 
+	}
+  
+  
+  const NOTE_TEXT = 
+        `<b>Name:</b> ${name} <br>
+        <b>Email:</b> ${EMAIL} <br>
+        <b>Referrer:</b> ${referrer} <br>
+        <b>Phone number:</b> ${phone} <br>
+        <b>Lives in:</b> ${city}, ${country}<br><br>`;
+  
 
+  let data = { 
+    "properties": {
+      "hs_timestamp": `${isoString}`,
+      "hs_note_body": `${NOTE_TEXT}`,
+      "hubspot_owner_id": `${OWNER}`
+    },
+    "associations": [
+      {
+        "to":{
+          "id": RECORD_ID
+        },
+        "types":[
+          {
+            "associationCategory":"HUBSPOT_DEFINED",
+            "associationTypeId":202
+          }]
+      }]
 
-    setLookup(formContext, "tri_state", "tri_abbreviation", "tri_stateid", stateName, "tri_stateid").then(guid=>{
-        if (guid) {
-            setCounty(formContext, countyName, guid);
+  }
+
+try {
+  const response = await axios.post('https://api.hubapi.com/crm/v3/objects/notes', data, {
+    headers: {
+      'Content-Type': 'application/json',
+      'authorization': `Bearer ${process.env.note}`
+    },
+
+  });
+  
+  await axios.patch(`https://api.hubapi.com/crm/v3/objects/contacts/${RECORD_ID}`, {
+        properties: {
+          hubspot_owner_id: OWNER 
         }
-    });
-    setLookup(formContext, "tri_country", "tri_name", "tri_countryid", countryName, "tri_countryid");
-    
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'authorization': `Bearer ${process.env.note}` // Make sure this token has the necessary permissions
+        }
+      });
+  
+  
+  
+  const result = response.data;
+  console.log(result);
+  console.log(OWNER);
 }
-
-
-// Function to set lookup value by name
-function setLookup(formContext, entityName, fieldName, lookupFieldName, value, entityIdField) 
-{
-    return new Promise((resolve, reject) => {
-        if (value) {
-            var fetchXml = [
-                "<fetch top='1'>",
-                "  <entity name='" + entityName + "'>",
-                "    <filter>",
-                "      <condition attribute='" + fieldName + "' operator='eq' value='" + value + "'/>",
-                "    </filter>",
-                "  </entity>",
-                "</fetch>",
-            ].join("");
-
-            Xrm.WebApi.retrieveMultipleRecords(entityName, "?fetchXml=" + encodeURIComponent(fetchXml)).then(
-                function success(result) {
-
-                    if (result.entities.length > 0) {
-                        var guid = result.entities[0][entityIdField];
-                        var lookupValue = [
-                            {
-                                id: guid,
-                                name: value,
-                                entityType: entityName,
-                            },
-                        ];
-                        formContext.getAttribute(lookupFieldName).setValue(lookupValue);
-                        resolve(guid); // Resolve the promise with the GUID
-                    } else {
-                        resolve(null); // Resolve with null if no match
-                    }
-                },
-                function (error) {
-                    console.log(error.message);
-                    reject(error); // Reject the promise on error
-                }
-            );
-        } else {
-            resolve(null); // Resolve with null if value is not provided
-        }
-    });
+  catch (error) {
+  console.log('Error posting note :', error.response.data);
+}
+  
+  
+  /*****
+    Use the callback function to output data that can be used in later actions in your workflow.
+  *****/
+  callback({
+    outputFields: {
+      
+    }
+  });
 }
