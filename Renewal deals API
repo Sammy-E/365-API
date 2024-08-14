@@ -1,0 +1,83 @@
+let axios = require("axios"); 
+
+exports.main = async (event) => {
+  
+  
+  // Retrieving the properties of the deal to renew 
+  // The properties should be specified in the "Property to include in code" section abov the code editor. 
+  // The properties deal_length (in days) and deal_discount (in percentage) should be specified as custom properties on the deal record. 
+  
+  const amount = event.inputFields['amount']; 
+  const deal_length = Number(event.inputFields['deal_length']); 
+  
+  const dealname = event.inputFields['dealname']; 
+  const closedate = event.inputFields['closedate']; 
+  const OWNER = event.inputFields['hubspot_owner_id']; 
+  const CID = event.inputFields['compID']; 
+  
+  //const isoString = currentDate.toISOString(); 
+  
+  const todayMidnightUTC = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate())); 
+  const isoStringMidnightUTC = todayMidnightUTC.toISOString(); 
+  
+  // Calculate the new deal amount after new discount is applied 
+  const new_amount = amount; 
+  
+  // Convert orginal deal close date unixtimestamp to a number 
+  
+  const unixTimeZero = Number(closedate); 
+  const daysInDealLength = deal_length; 
+  
+  // Calculate the timestamp for midnight UTC on the renewal date 
+  
+  const renewalDateMidnightUTC = new Date(unixTimeZero + daysInDealLength * 24 * 60 * 60 * 1000); 
+  renewalDateMidnightUTC.setUTCHours(0, 0, 0, 0); // Set time to midnight UTC 
+  
+  // Get the timestamp in milliseconds for midnight UTC 
+  
+  const newtimestamp = renewalDateMidnightUTC.getTime(); 
+  
+  let data = { 
+    "properties": {
+      "amount": new_amount, //Renewal Deal new amount after new discount is applied
+      "closedate": newtimestamp, // Renewal Deal new close date by adding deal length to the original deal close date
+      "renewal_date_coke": newtimestamp, 
+      "dealname": dealname + " - API", // Renewal Deal new name by adding - Renewal to the original deal name
+      "dealstage": 732971477, // Renewal Deal stage 
+      "today_coke": ${isoStringMidnightUTC}, // Setting today's date for calculation
+      "deal_length": deal_length, // Renewal deal new length. By default, same length as the original deal.
+      "hubspot_owner_id": OWNER, // Renewal deal owner. The value used here is the ID of the CSM responsible for renewal. You'll use your own value generated in your portal. 
+      "pipeline": "default" // Renewal Deal pipeline. The value used here is the ID of the renewal pipeline. You'll use your own value generated in your portal
+    }, 
+      "associations": [
+        { 
+        "to": { 
+          "id": CID
+          }, 
+        "types": [ 
+        { 
+        "associationCategory": "HUBSPOT_DEFINED", 
+        "associationTypeId": 341 
+          }]
+        }]
+  
+  } 
+  
+  try {
+    const response = await axios.post('https://api.hubapi.com/crm/v3/objects/deals', data, { 
+      headers: {
+        'Content-Type': 'application/json', 
+        'authorization': `Bearer ${process.env.renewal}`
+      }, 
+    }); 
+    
+    const result = response.data; 
+    console.log(result);
+    
+  } 
+  
+  catch (error) {
+    console.log('Error posting note :', error.response.data);
+  }
+  
+}
